@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # 1. Peladen Pemantauan Utama
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus_drm
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert.rules:/etc/prometheus/alert.rules # Tambahan pemetaan berkas aturan
+    ports:
+      - "9090:9090"
+    networks:
+      - drm_network
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+  
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    user: "0"
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki.yml:/etc/loki/loki.yml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/loki.yml
+    networks:
+      - drm_network
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: promtail
+    volumes:
+      - ./promtail.yml:/etc/promtail/promtail.yml
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/promtail.yml
+    depends_on:
+      - loki
+    networks:
+      - drm_network
+
+  # 2. Mesin Orkestrasi Peringatan Dini (BARU)
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager_drm
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    ports:
+      - "9093:9093"
+    networks:
+      - drm_network
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    restart: unless-stopped
+
+  # 3. Peladen Visualisasi Analitik
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana_drm
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - drm_network
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
+  # 4. Agen Probing Latensi
+  blackbox_exporter:
+    image: prom/blackbox-exporter:latest
+    container_name: blackbox_exporter_drm
+    ports:
+      - "9115:9115"
+    networks:
+      - drm_network
+    restart: unless-stopped
+
+  # 5. Simulasi Node Videotron A
+  node_videotron_a:
+    image: nginx:alpine
+    container_name: videotron_a_mock
+    networks:
+      - drm_network
+
+  # 6. Simulasi Node Videotron B
+  node_videotron_b:
+    image: nginx:alpine
+    container_name: videotron_b_mock
+    networks:
+      - drm_network
+
+  # 7. Simulasi Peladen Operator Broadcasting
+  server_operator:
+    image: nginx:alpine
+    container_name: operator_mock
+    networks:
+      - drm_network
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+
+networks:
+  drm_network:
+    driver: bridge

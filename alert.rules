@@ -1,0 +1,11 @@
+groups:
+- name: drm_alerts
+  rules:
+  - alert: NodeVideotronMati
+    expr: probe_success{job="drm_uptime_monitor"} == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "🚨 DARURAT: {{ $labels.instance }} OFFLINE"
+      description: "Perangkat {{ $labels.instance }} tidak merespons transmisi jaringan selama lebih dari 1 menit. Segera periksa infrastruktur fisik atau sumber daya listrik di lokasi operasional!"
