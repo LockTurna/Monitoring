@@ -12,6 +12,7 @@ alerting:
 # Memuat file aturan (rules)
 rule_files:
   - "/etc/prometheus/alert.rules"
+  - "rules.yml"
 
 scrape_configs:
   - job_name: 'prometheus_internal'
@@ -34,3 +35,21 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: blackbox_exporter:9115
+
+  # Simulasi videotron menggunakan Node Exporter
+  # Ganti targets dengan IP asli videotron kalau sudah ada
+  - job_name: videotron
+    static_configs:
+      - targets:
+          - node-exporter:9100
+        labels:
+          instance: "Videotron-01"
+          location: "Tunjungan Plaza"
+ 
+      # Tambahkan entry baru untuk tiap videotron baru
+      # - targets:
+      #     - 192.168.1.102:9100
+      #   labels:
+      #     instance: "Videotron-02"
+      #     location: "Galaxy Mall"
+ 

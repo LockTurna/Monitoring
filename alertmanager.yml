@@ -6,11 +6,33 @@ route:
   group_wait: 10s
   group_interval: 1m
   repeat_interval: 1h
+  routes:
+    # Route khusus untuk alert yang butuh auto-remediation
+    - match_re:
+        alertname: 'VideotronDown|PrometheusDown|GrafanaDown|LokiDown|PromtailDown'
+      receiver: 'auto-remediation'
+      continue: true    # tetap kirim ke receiver default (Telegram) juga
 
 receivers:
   - name: 'telegram_drm_it'
     telegram_configs:
       - bot_token: '8171004718:AAFuuuB8Tk1cqPvf6S6OEqr3sIu37RwiAI0'
         chat_id: 1296546071
+        message: |
+          🚨 *Alert: {{ .GroupLabels.alertname }}*
+          Status: {{ .Status | toUpper }}
+          Instance: {{ range .Alerts }}{{ .Labels.instance }}{{ end }}
+          Waktu: {{ .CommonAnnotations.description }}
         parse_mode: 'HTML'
 
+  - name: 'auto-remediation'
+    webhook_configs:
+      - url: 'http://remediation:5001/webhook'
+        send_resolved: false    # hanya kirim saat firing, bukan resolved
+ 
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']

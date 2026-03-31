@@ -1,0 +1,75 @@
+---
+# ============================================================
+# Role: monitoring_server
+# Instalasi full stack: Prometheus, Grafana, Alertmanager,
+# Loki, Promtail, dan Remediation service
+# ============================================================
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install dependencies
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - git
+      - python3-pip
+    state: present
+
+- name: Install Docker
+  shell: curl -fsSL https://get.docker.com | sh
+  args:
+    creates: /usr/bin/docker
+
+- name: Install Docker Compose plugin
+  apt:
+    name: docker-compose-plugin
+    state: present
+
+- name: Tambahkan user ke group docker
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Buat direktori project
+  file:
+    path: /opt/videotron-monitoring
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Clone repository monitoring
+  git:
+    repo: "https://github.com/{{ github_username }}/videotron-monitoring.git"
+    dest: /opt/videotron-monitoring
+    version: main
+    force: yes
+  become_user: "{{ ansible_user }}"
+
+- name: Jalankan Docker Compose stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/videotron-monitoring
+    state: present
+    pull: always
+
+- name: Pastikan semua container running
+  community.docker.docker_container_info:
+    name: "{{ item }}"
+  register: container_info
+  loop:
+    - prometheus
+    - grafana
+    - alertmanager
+    - loki
+    - promtail
+    - remediation
+
+- name: Print status container
+  debug:
+    msg: "Container {{ item.item }} - Running: {{ item.container.State.Running }}"
+  loop: "{{ container_info.results }}"

@@ -1,0 +1,55 @@
+---
+# ============================================================
+# Role: promtail_agent
+# Instalasi Promtail di tiap device videotron
+# Log akan dikirim ke Loki di monitoring server
+# ============================================================
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install Docker
+  shell: curl -fsSL https://get.docker.com | sh
+  args:
+    creates: /usr/bin/docker
+
+- name: Tambahkan user ke group docker
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Buat direktori config promtail
+  file:
+    path: /etc/promtail
+    state: directory
+    mode: '0755'
+
+- name: Deploy config Promtail (dinamis per device)
+  template:
+    src: promtail.yml.j2
+    dest: /etc/promtail/promtail.yml
+    mode: '0644'
+  notify: restart promtail
+
+- name: Jalankan Promtail container
+  community.docker.docker_container:
+    name: promtail
+    image: grafana/promtail:2.9.0
+    state: started
+    restart_policy: unless-stopped
+    volumes:
+      - /etc/promtail/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/promtail.yml
+
+- name: Cek Promtail berjalan
+  community.docker.docker_container_info:
+    name: promtail
+  register: promtail_status
+
+- name: Print status Promtail
+  debug:
+    msg: "Promtail di {{ vtron_name }} - Running: {{ promtail_status.container.State.Running }}"

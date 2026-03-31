@@ -1,0 +1,17 @@
+---
+# ============================================================
+# Playbook: Setup Monitoring Stack Videotron
+# Jalankan: ansible-playbook -i inventory.ini playbook.yml
+# ============================================================
+
+- name: Setup Monitoring Server (Prometheus, Grafana, Loki, dll)
+  hosts: monitoring_server
+  become: true
+  roles:
+    - monitoring_server
+
+- name: Setup Promtail di setiap Videotron
+  hosts: videotron
+  become: true
+  roles:
+    - promtail_agent
