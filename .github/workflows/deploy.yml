@@ -3,10 +3,10 @@ name: Videotron Monitoring CI/CD
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     branches:
-      - main
+      - master
 
 jobs:
   # ============================================
@@ -61,7 +61,7 @@ jobs:
     name: Deploy to Server
     runs-on: ubuntu-latest
     needs: validate                # hanya jalan kalau validate sukses
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
 
     steps:
       - name: Checkout repository
@@ -84,7 +84,7 @@ jobs:
             cd /opt/videotron-monitoring
 
             # Pull perubahan terbaru
-            git pull origin main
+            git pull origin master
 
             # Restart stack dengan config baru
             docker compose pull
