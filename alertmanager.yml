@@ -3,13 +3,14 @@ global:
 
 route:
   receiver: 'telegram_drm_it'
-  group_wait: 10s # Waktu tunggu sebelum mengirim notifikasi pertama
+  group_wait: 10s
   group_interval: 1m
-  repeat_interval: 1h # Ulangi pesan setiap 1 jam jika masalah belum diatasi
+  repeat_interval: 1h
 
 receivers:
-- name: 'telegram_drm_it'
-  telegram_configs:
-  - bot_token: '8171004718:AAFuuuB8Tk1cqPvf6S6OEqr3sIu37RwiAI0'
-    chat_id: 1296546071 # Masukkan angka langsung, contoh: 123456789
-    parse_mode: 'HTML'
+  - name: 'telegram_drm_it'
+    telegram_configs:
+      - bot_token: '8171004718:AAFuuuB8Tk1cqPvf6S6OEqr3sIu37RwiAI0'
+        chat_id: 1296546071
+        parse_mode: 'HTML'
+

@@ -1,24 +1,29 @@
 ---
-version: '3.8'
+# version: '3.8'  # removed obsolete version
 
 services:
-  # 1. Peladen Pemantauan Utama
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.53.0
     container_name: prometheus_drm
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - ./alert.rules:/etc/prometheus/alert.rules
+      - prometheus_data:/prometheus
     ports:
       - "9090:9090"
     networks:
       - drm_network
     command:
       - --config.file=/etc/prometheus/prometheus.yml
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:2.9.0
+    image: grafana/loki:3.1.1
     container_name: loki
     user: "0"
     ports:
@@ -29,10 +34,13 @@ services:
     command: -config.file=/etc/loki/loki.yml
     networks:
       - drm_network
+    restart: unless-stopped
 
   promtail:
-    image: grafana/promtail:2.9.0
+    image: grafana/promtail:3.1.1
     container_name: promtail
+    ports:
+      - "9080:9080"
     volumes:
       - ./promtail.yml:/etc/promtail/promtail.yml
       - /var/log:/var/log:ro
@@ -42,42 +50,58 @@ services:
       - loki
     networks:
       - drm_network
+    restart: unless-stopped
 
-  # 2. Mesin Orkestrasi Peringatan Dini (BARU)
   alertmanager:
-    image: prom/alertmanager:latest
-    container_name: alertmanager_drm
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
     volumes:
       - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
     ports:
       - "9093:9093"
     networks:
       - drm_network
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/api/v2/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
 
-  # 3. Peladen Visualisasi Analitik
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.4.7
     container_name: grafana_drm
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    networks:
-      - drm_network
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana-provisioning:/etc/grafana/provisioning:ro
     depends_on:
-      - prometheus
-      - loki
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_started
+      alertmanager:
+        condition: service_healthy
+    networks:
+      - drm_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
 
-  # 4. Agen Probing Latensi
   blackbox_exporter:
-    image: prom/blackbox-exporter:latest
+    image: prom/blackbox-exporter:v0.25.0
     container_name: blackbox_exporter_drm
     ports:
       - "9115:9115"
@@ -85,32 +109,55 @@ services:
       - drm_network
     restart: unless-stopped
 
-  # 5. Simulasi Node Videotron A
   node_videotron_a:
     image: nginx:alpine
     container_name: videotron_a_mock
+    ports:
+      - "8080:80"
     networks:
       - drm_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
 
-  # 6. Simulasi Node Videotron B
   node_videotron_b:
     image: nginx:alpine
     container_name: videotron_b_mock
+    ports:
+      - "8081:80"
     networks:
       - drm_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
 
-  # 7. Simulasi Peladen Operator Broadcasting
   server_operator:
     image: nginx:alpine
     container_name: operator_mock
+    ports:
+      - "8082:80"
     networks:
       - drm_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
 
 volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  alertmanager_data:
 
 networks:
   drm_network:
     driver: bridge
+
