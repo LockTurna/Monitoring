@@ -10,9 +10,11 @@ route:
   routes:
     # Route khusus untuk alert yang butuh auto-remediation
     - match_re:
-        alertname: 'VideotronDown|PrometheusDown|GrafanaDown|LokiDown|PromtailDown'
+        alertname: >-
+          VideotronDown|PrometheusDown|GrafanaDown|
+          LokiDown|PromtailDown
       receiver: 'auto-remediation'
-      continue: true
+      continue: true    # tetap kirim ke receiver default (Telegram) juga
 
 receivers:
   - name: 'telegram_drm_it'
