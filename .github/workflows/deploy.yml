@@ -67,6 +67,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Validate Secrets
+        run: |
+          if [ -z "${{ secrets.SERVER_HOST }}" ]; then
+            echo "❌ ERROR: SERVER_HOST secret tidak ditemukan!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SERVER_USER }}" ]; then
+            echo "❌ ERROR: SERVER_USER secret tidak ditemukan!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SERVER_SSH_KEY }}" ]; then
+            echo "❌ ERROR: SERVER_SSH_KEY secret tidak ditemukan!"
+            exit 1
+          fi
+          echo "✅ Semua secrets ditemukan"
+          echo "Host: ${{ secrets.SERVER_HOST }}"
+          echo "User: ${{ secrets.SERVER_USER }}"
+
       - name: Notify Telegram - Deploy Dimulai
         run: |
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
@@ -79,19 +97,47 @@ jobs:
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
           key: ${{ secrets.SERVER_SSH_KEY }}
+          timeout: 60s
+          script_stop: true
           script: |
+            set -e
+            echo "🚀 Mulai deploy ke server..."
+            
+            # Cek koneksi
+            echo "📡 Checking server connectivity..."
+            whoami
+            pwd
+            
+            # Navigate ke folder
+            echo "📁 Navigating to /opt/videotron-monitoring..."
+            if [ ! -d "/opt/videotron-monitoring" ]; then
+              echo "❌ Directory /opt/videotron-monitoring tidak ditemukan!"
+              echo "Membuat directory..."
+              sudo mkdir -p /opt/videotron-monitoring
+              sudo chown $(whoami):$(whoami) /opt/videotron-monitoring
+            fi
+            
             cd /opt/videotron-monitoring
-
-            # Pull perubahan terbaru
-            git pull origin master
-
-            # Restart stack dengan config baru
-            docker compose pull
+            
+            # Pull latest changes
+            echo "📥 Pulling latest changes..."
+            git pull origin master || echo "⚠️ Git pull failed, continuing..."
+            
+            # Pull latest Docker images
+            echo "🐳 Pulling Docker images..."
+            docker compose pull || true
+            
+            # Start/restart services
+            echo "🔄 Starting services..."
             docker compose up -d --force-recreate
-
-            # Cek semua container running
+            
+            # Check status
+            echo "✅ Checking service status..."
             docker compose ps
+            
+            echo "🎉 Deploy completed!"
 
       - name: Notify Telegram - Deploy Sukses
         if: success()
