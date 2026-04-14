@@ -12,7 +12,7 @@ route:
     - match_re:
         alertname: 'VideotronDown|PrometheusDown|GrafanaDown|LokiDown|PromtailDown'
       receiver: 'auto-remediation'
-      continue: true    # tetap kirim ke receiver (Telegram) juga
+      continue: true
 
 receivers:
   - name: 'telegram_drm_it'
