@@ -10,7 +10,7 @@ alerting:
         - targets:
             - 'alertmanager:9093'
 
-# Memuat file aturan (rules)
+# Memuat file aturan
 rule_files:
   - "/etc/prometheus/alert.rules"
   - "rules.yml"
