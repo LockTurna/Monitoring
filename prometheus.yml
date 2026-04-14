@@ -1,3 +1,4 @@
+---
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -25,9 +26,9 @@ scrape_configs:
       module: [http_2xx]
     static_configs:
       - targets:
-        - http://node_videotron_a
-        - http://node_videotron_b
-        - http://server_operator
+          - http://node_videotron_a
+          - http://node_videotron_b
+          - http://server_operator
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -45,11 +46,10 @@ scrape_configs:
         labels:
           instance: "Videotron-01"
           location: "Tunjungan Plaza"
- 
+
       # Tambahkan entry baru untuk tiap videotron baru
       # - targets:
       #     - 192.168.1.102:9100
       #   labels:
       #     instance: "Videotron-02"
       #     location: "Galaxy Mall"
- 

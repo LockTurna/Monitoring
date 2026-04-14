@@ -1,3 +1,4 @@
+---
 auth_enabled: false
 
 server:
@@ -39,4 +40,4 @@ limits_config:
 compactor:
   working_directory: /loki/compactor
   retention_enabled: false
-
+  
