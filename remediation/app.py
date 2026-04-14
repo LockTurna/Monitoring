@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 # Mapping nama alert ke nama container yang perlu di-restart
 ALERT_CONTAINER_MAP = {
-    "VideotronDown":     "videotron",
+    "VideotronDown":    "node-exporter",
     "PrometheusDown":   "prometheus",
     "GrafanaDown":      "grafana",
     "LokiDown":         "loki",
