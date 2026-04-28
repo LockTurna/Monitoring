@@ -1,0 +1,68 @@
+
+---
+- name: Install dependencies
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+    update_cache: yes
+
+- name: Install Docker
+  shell: curl -fsSL https://get.docker.com | sh
+  args:
+    creates: /usr/bin/docker
+
+- name: Tambahkan user ke group docker
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Hapus path lama kalau ada konflik
+  file:
+    path: /tmp/promtail/{{ inventory_hostname }}
+    state: absent
+
+- name: Buat folder config
+  file:
+    path: /tmp/promtail/{{ inventory_hostname }}
+    state: directory
+    mode: '0755'
+
+- name: Deploy config Promtail
+  template:
+    src: promtail.yml.j2
+    dest: /tmp/promtail/{{ inventory_hostname }}/promtail.yml
+    mode: '0644'
+
+- name: Print config yang di-generate
+  command: cat /tmp/promtail/{{ inventory_hostname }}/promtail.yml
+  register: config_output
+
+- name: Tampilkan config Promtail
+  debug:
+    msg: "{{ config_output.stdout_lines }}"
+
+- name: Hapus container promtail lama kalau ada
+  shell: docker rm -f promtail || true
+
+- name: Jalankan Promtail container
+  shell: |
+    docker run -d \
+      --name promtail \
+      --restart unless-stopped \
+      -v /tmp/promtail/{{ inventory_hostname }}/promtail.yml:/etc/promtail/promtail.yml \
+      -v /var/log:/var/log:ro \
+      grafana/promtail:2.9.0 \
+      -config.file=/etc/promtail/promtail.yml
+
+- name: Cek Promtail berjalan
+  shell: docker ps --filter name=promtail --format "{{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}"
+  register: promtail_status
+
+- name: Print status Promtail
+  debug:
+    msg: "{{ promtail_status.stdout }}"

@@ -1,0 +1,25 @@
+
+---
+- name: Cek Docker sudah terinstall
+  command: docker --version
+  register: docker_version
+
+- name: Print versi Docker
+  debug:
+    msg: "Docker version: {{ docker_version.stdout }}"
+
+- name: Cek Docker Compose sudah terinstall
+  command: docker compose version
+  register: compose_version
+
+- name: Print versi Docker Compose
+  debug:
+    msg: "Docker Compose version: {{ compose_version.stdout }}"
+
+- name: Cek semua container monitoring berjalan
+  command: docker ps --format "{{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}"
+  register: containers
+
+- name: Print status container
+  debug:
+    msg: "{{ containers.stdout_lines }}"
