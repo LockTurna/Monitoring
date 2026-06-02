@@ -159,7 +159,14 @@ services:
       - "8301:8301/udp"
       - "8302:8302"
       - "8300:8300"
-    command: agent -server -bootstrap-expect=1 -ui -client=0.0.0.0 -advertise=100.80.162.115 -datacenter=videotron-dc
+    command:
+      - agent
+      - -server
+      - -bootstrap-expect=1
+      - -ui
+      - -client=0.0.0.0
+      - -advertise=100.80.162.115
+      - -datacenter=videotron-dc
     networks:
       - drm_network
     restart: unless-stopped
