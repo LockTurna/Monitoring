@@ -1,0 +1,45 @@
+---
+- name: Buat folder Consul
+  win_file:
+    path: C:\consul\config
+    state: directory
+
+- name: Download Consul untuk Windows
+  win_get_url:
+    url: https://releases.hashicorp.com/consul/1.17.0/consul_1.17.0_windows_amd64.zip
+    dest: C:\consul\consul.zip
+
+- name: Extract Consul
+  win_unzip:
+    src: C:\consul\consul.zip
+    dest: C:\consul\
+
+- name: Deploy config Consul agent
+  win_template:
+    src: consul-agent.json.j2
+    dest: C:\consul\config\consul.json
+
+- name: Install Consul sebagai Windows service
+  win_shell: |
+    if (-not (Get-Service -Name "consul" -ErrorAction SilentlyContinue)) {
+        New-Service -Name "consul" `
+          -BinaryPathName 'C:\consul\consul.exe agent -config-dir=C:\consul\config' `
+          -DisplayName "Consul Agent" `
+          -StartupType Automatic
+    }
+  args:
+    creates: C:\consul\consul.log
+
+- name: Start Consul service
+  win_service:
+    name: consul
+    state: started
+    start_mode: auto
+
+- name: Cek Consul berjalan
+  win_shell: Get-Service consul | Select-Object Name, Status
+  register: consul_status
+
+- name: Print status Consul
+  debug:
+    msg: "{{ consul_status.stdout }}"

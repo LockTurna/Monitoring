@@ -1,0 +1,33 @@
+---
+- name: Aktifkan Remote Desktop
+  win_regedit:
+    path: HKLM:\System\CurrentControlSet\Control\Terminal Server
+    name: fDenyTSConnections
+    data: 0
+    type: dword
+
+- name: Allow RDP di firewall Windows
+  win_firewall_rule:
+    name: Remote Desktop
+    localport: 3389
+    action: allow
+    direction: in
+    protocol: tcp
+    state: present
+    enabled: yes
+
+- name: Pastikan RDP service berjalan
+  win_service:
+    name: TermService
+    state: started
+    start_mode: auto
+
+- name: Print status RDP
+  win_shell: |
+    $rdp = Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections"
+    if ($rdp.fDenyTSConnections -eq 0) { "RDP Enabled" } else { "RDP Disabled" }
+  register: rdp_status
+
+- name: Tampilkan status
+  debug:
+    msg: "{{ rdp_status.stdout }}"

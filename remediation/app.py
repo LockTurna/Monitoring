@@ -6,13 +6,11 @@ import os
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-# Mapping nama alert ke nama container yang perlu di-restart
-ALERT_CONTAINER_MAP = {
-    "VideotronDown":    "node-exporter",
-    "PrometheusDown":   "prometheus",
-    "GrafanaDown":      "grafana",
-    "LokiDown":         "loki",
-    "PromtailDown":     "promtail",
+# Mapping instance (dari label Prometheus) ke nama container Docker
+INSTANCE_CONTAINER_MAP = {
+    "http://node_videotron_a": "videotron_a_mock",
+    "http://node_videotron_b": "videotron_b_mock",
+    "http://server_operator":  "operator_mock",
 }
 
 def restart_container(container_name: str):
@@ -48,26 +46,27 @@ def webhook():
     results = []
 
     for alert in alerts:
-        status      = alert.get("status", "")
-        alert_name  = alert.get("labels", {}).get("alertname", "")
-        instance    = alert.get("labels", {}).get("instance", "unknown")
+        status     = alert.get("status", "")
+        alert_name = alert.get("labels", {}).get("alertname", "")
+        instance   = alert.get("labels", {}).get("instance", "unknown")
 
         logging.info(f"[ALERT] {alert_name} | status={status} | instance={instance}")
 
-        # Hanya proses alert yang sedang firing
         if status != "firing":
             results.append({"alert": alert_name, "action": "skipped (resolved)"})
             continue
 
-        container = ALERT_CONTAINER_MAP.get(alert_name)
+        # Cari container berdasarkan instance label
+        container = INSTANCE_CONTAINER_MAP.get(instance)
         if not container:
-            logging.warning(f"[REMEDIATION] Tidak ada mapping untuk alert '{alert_name}'.")
-            results.append({"alert": alert_name, "action": "no mapping found"})
+            logging.warning(f"[REMEDIATION] Tidak ada mapping untuk instance '{instance}'.")
+            results.append({"alert": alert_name, "instance": instance, "action": "no mapping found"})
             continue
 
         success, msg = restart_container(container)
         results.append({
             "alert":     alert_name,
+            "instance":  instance,
             "container": container,
             "action":    "restart",
             "success":   success,

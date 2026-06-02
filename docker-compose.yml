@@ -1,6 +1,4 @@
 ---
-version: '3.8'
-# version: '3.8'  # removed obsolete version
 
 services:
   prometheus:
@@ -52,6 +50,7 @@ services:
       - ./promtail.yml:/etc/promtail/promtail.yml
       - /var/log:/var/log:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     command: -config.file=/etc/promtail/promtail.yml
     depends_on:
       - loki
@@ -79,9 +78,10 @@ services:
         - CMD
         - wget
         - --no-verbose
+        - --quiet
         - --tries=1
         - --spider
-        - http://localhost:9093/api/v1/status
+        - http://localhost:9093/-/healthy
       start_period: 90s
       interval: 60s
       timeout: 20s
@@ -129,64 +129,13 @@ services:
       - drm_network
     restart: unless-stopped
 
-  node_videotron_a:
-    image: nginx:alpine
-    container_name: videotron_a_mock
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
     ports:
-      - "8080:80"
+      - "9100:9100"
     networks:
       - drm_network
-    healthcheck:
-      test:
-        - CMD
-        - wget
-        - --no-verbose
-        - --tries=1
-        - --spider
-        - http://localhost
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-
-  node_videotron_b:
-    image: nginx:alpine
-    container_name: videotron_b_mock
-    ports:
-      - "8081:80"
-    networks:
-      - drm_network
-    healthcheck:
-      test:
-        - CMD
-        - wget
-        - --no-verbose
-        - --tries=1
-        - --spider
-        - http://localhost
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-
-  server_operator:
-    image: nginx:alpine
-    container_name: operator_mock
-    ports:
-      - "8082:80"
-    networks:
-      - drm_network
-    healthcheck:
-      test:
-        - CMD
-        - wget
-        - --no-verbose
-        - --tries=1
-        - --spider
-        - http://localhost
-      interval: 30s
-      timeout: 10s
-      retries: 3
     restart: unless-stopped
 
   remediation:
@@ -200,11 +149,17 @@ services:
       - drm_network
     restart: unless-stopped
 
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: node-exporter
+  consul:
+    image: hashicorp/consul:1.17
+    container_name: consul
     ports:
-      - "9100:9100"
+      - "8500:8500"
+      - "8600:8600/udp"
+      - "8301:8301"
+      - "8301:8301/udp"
+      - "8302:8302"
+      - "8300:8300"
+    command: agent -server -bootstrap-expect=1 -ui -client=0.0.0.0 -advertise=100.80.162.115 -datacenter=videotron-dc
     networks:
       - drm_network
     restart: unless-stopped

@@ -3,32 +3,26 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
-# Menghubungkan Prometheus dengan mesin Alertmanager
 alerting:
   alertmanagers:
     - static_configs:
         - targets:
             - 'alertmanager:9093'
 
-# Memuat file aturan
 rule_files:
   - "/etc/prometheus/alert.rules"
-  - "rules.yml"
 
 scrape_configs:
-  - job_name: 'prometheus_internal'
-    static_configs:
-      - targets: ['localhost:9090']
 
-  - job_name: 'drm_uptime_monitor'
+  # Real Videotron (VM Windows via Tailscale)
+  - job_name: 'Real_Videotron'
     metrics_path: /probe
     params:
       module: [http_2xx]
     static_configs:
       - targets:
-          - http://node_videotron_a
-          - http://node_videotron_b
-          - http://server_operator
+          - http://100.125.1.96:8080      # vtron-03 Windows
+          - http://100.114.121.89:8080    # vtron-04 Windows
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -37,19 +31,28 @@ scrape_configs:
       - target_label: __address__
         replacement: blackbox_exporter:9115
 
-  # Simulasi videotron menggunakan Node Exporter
-  # Ganti targets dengan IP asli videotron kalau sudah ada
-  - job_name: videotron
-    static_configs:
-      - targets:
-          - node-exporter:9100
-        labels:
-          instance: "Videotron-01"
-          location: "Tunjungan Plaza"
-
-    # Tambahkan entry baru untuk tiap videotron baru
-    # - targets:
-    #     - 192.168.1.102:9100
-    #   labels:
-    #     instance: "Videotron-02"
-    #     location: "Galaxy Mall"
+  # Service Discovery via Consul
+  - job_name: 'Consul_Videotron'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    consul_sd_configs:
+      - server: 'consul:8500'
+        services: ['videotron']
+    relabel_configs:
+      # 1. Perbaikan URL Target
+      - source_labels: [__meta_consul_service_address, __meta_consul_service_port]
+        separator: ':'
+        target_label: __param_target
+        replacement: 'http://$1'
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox_exporter:9115  
+      - source_labels: [__meta_consul_node]
+        target_label: node
+      # 2. Perbaikan Format Nama / Tags (Membuang koma di awal dan akhir)
+      - source_labels: [__meta_consul_tags]
+        regex: ',(.*),'
+        target_label: vtron_name
+        replacement: '$1'

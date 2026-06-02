@@ -1,0 +1,20 @@
+
+{
+  "server": false,
+  "datacenter": "videotron-dc",
+  "node_name": "{{ inventory_hostname }}",
+  "retry_join": ["{{ monitoring_server_tailscale_ip }}"],
+  "services": [
+    {
+      "name": "videotron",
+      "tags": ["{{ vtron_name }}"],
+      "address": "{{ ansible_host }}",
+      "port": 80,
+      "check": {
+        "http": "http://{{ ansible_host }}:80",
+        "interval": "30s",
+        "timeout": "5s"
+      }
+    }
+  ]
+}

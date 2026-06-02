@@ -1,0 +1,55 @@
+
+---
+# ============================================================
+# Role: content_delivery
+# Kirim file konten ke semua device videotron
+# ============================================================
+
+# ── Linux Device ──
+- name: Buat folder content di Linux device
+  file:
+    path: /opt/videotron/content
+    state: directory
+    mode: '0755'
+  when: ansible_system == "Linux"
+
+- name: Kirim konten ke Linux device
+  synchronize:
+    src: /mnt/e/Magang/Testing/content/
+    dest: /opt/videotron/content/
+    recursive: yes
+    delete: no
+  when: ansible_system == "Linux"
+
+- name: List file yang terkirim (Linux)
+  command: ls -lh /opt/videotron/content/
+  register: linux_files
+  when: ansible_system == "Linux"
+
+- name: Tampilkan file di Linux device
+  debug:
+    msg: "{{ linux_files.stdout_lines }}"
+  when: ansible_system == "Linux"
+
+# ── Windows Device ──
+- name: Buat folder content di Windows device
+  win_file:
+    path: C:\videotron\content
+    state: directory
+  when: ansible_system == "Win32NT"
+
+- name: Kirim konten ke Windows device
+  win_copy:
+    src: /mnt/e/Magang/Testing/content/
+    dest: C:\videotron\content\
+  when: ansible_system == "Win32NT"
+
+- name: List file yang terkirim (Windows)
+  win_shell: Get-ChildItem C:\videotron\content | Format-Table Name, Length, LastWriteTime
+  register: win_files
+  when: ansible_system == "Win32NT"
+
+- name: Tampilkan file di Windows device
+  debug:
+    msg: "{{ win_files.stdout_lines }}"
+  when: ansible_system == "Win32NT"
