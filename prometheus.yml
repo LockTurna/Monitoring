@@ -38,7 +38,9 @@ scrape_configs:
       - server: 'consul:8500'
         services: ['videotron']
     relabel_configs:
-      - source_labels: [__meta_consul_service_address, __meta_consul_service_port]
+      - source_labels:
+        - __meta_consul_service_address
+        - __meta_consul_service_port        
         separator: ':'
         target_label: __param_target
         replacement: 'http://$1'
