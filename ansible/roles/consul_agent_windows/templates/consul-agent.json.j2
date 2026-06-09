@@ -3,7 +3,7 @@
   "datacenter": "videotron-dc",
   "node_name": "{{ inventory_hostname }}",
   "data_dir": "C:\\consul\\data",
-  "bind_addr": "{{ ansible_host }}",
+  "bind_addr": "0.0.0.0",
   "advertise_addr": "{{ ansible_host }}",
   "retry_join": ["{{ monitoring_server_tailscale_ip }}"],
   "services": [

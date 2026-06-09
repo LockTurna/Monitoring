@@ -14,14 +14,15 @@ rule_files:
 
 scrape_configs:
 
+  # Real Videotron (VM Windows via Tailscale)
   - job_name: 'Real_Videotron'
     metrics_path: /probe
     params:
       module: [http_2xx]
     static_configs:
       - targets:
-          - http://100.125.1.96:8080
-          - http://100.114.121.89:8080
+          - http://100.125.1.96:8080      # vtron-03 Windows
+          - http://100.118.6.22:8080    # vtron-04 Windows
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -30,6 +31,7 @@ scrape_configs:
       - target_label: __address__
         replacement: blackbox_exporter:9115
 
+  # Service Discovery via Consul
   - job_name: 'Consul_Videotron'
     metrics_path: /probe
     params:
@@ -38,9 +40,7 @@ scrape_configs:
       - server: 'consul:8500'
         services: ['videotron']
     relabel_configs:
-      - source_labels:
-          - __meta_consul_service_address
-          - __meta_consul_service_port
+      - source_labels: [__meta_consul_service_address, __meta_consul_service_port]
         separator: ':'
         target_label: __param_target
         replacement: 'http://$1'
@@ -51,6 +51,10 @@ scrape_configs:
       - source_labels: [__meta_consul_node]
         target_label: node
       - source_labels: [__meta_consul_tags]
-        regex: ',(.*),'
         target_label: vtron_name
-        replacement: '$1'
+
+  # Monitoring Server Resources (Node Exporter)
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets:
+          - node-exporter:9100

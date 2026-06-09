@@ -1,8 +1,93 @@
 ---
+# ============================================================
+# Role: consul_agent_windows
+# Full otomasi setup device Windows baru
+# ============================================================
+
+# ── PYTHON & HTTP SERVER ──────────────────────────────────
+
+- name: Cek Python sudah terinstall
+  win_shell: python --version
+  register: python_check
+  ignore_errors: yes
+
+- name: Install Python via winget
+  win_shell: winget install Python.Python.3 --silent --accept-package-agreements --accept-source-agreements
+  when: python_check.rc != 0
+  ignore_errors: yes
+
+- name: Buat script HTTP server
+  win_copy:
+    dest: C:\http_server.py
+    content: |
+      import http.server
+      import socketserver
+      import sys
+      import os
+
+      os.chdir("C:\\")
+
+      PORT = 8080
+      BIND_ADDRESS = "0.0.0.0"
+
+      class CustomHandler(http.server.SimpleHTTPRequestHandler):
+          def __init__(self, *args, **kwargs):
+              super().__init__(*args, **kwargs)
+
+      try:
+          with socketserver.TCPServer((BIND_ADDRESS, PORT), CustomHandler) as httpd:
+              print(f"Server berjalan di port {PORT}...")
+              httpd.serve_forever()
+      except Exception as e:
+          print(f"Gagal menjalankan server: {e}")
+          sys.exit(1)
+
+- name: Register Task Scheduler untuk HTTP server (auto-start)
+  win_shell: >-
+    $action = New-ScheduledTaskAction -Execute "python" -Argument "C:\http_server.py";
+    $trigger = New-ScheduledTaskTrigger -AtStartup;
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit 0 -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1);
+    Register-ScheduledTask -TaskName "VideotronHTTPServer" -Action $action -Trigger $trigger -Settings $settings -RunLevel Highest -Force
+  ignore_errors: yes
+
+- name: Jalankan HTTP server langsung di background
+  win_shell: >-
+    $action = New-ScheduledTaskAction -Execute "python" -Argument "C:\http_server.py";
+    $trigger = New-ScheduledTaskTrigger -AtStartup;
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit 0;
+    Register-ScheduledTask -TaskName "VideotronHTTPServer" -Action $action -Trigger $trigger -Settings $settings -RunLevel Highest -Force;
+    Start-ScheduledTask -TaskName "VideotronHTTPServer";
+    Start-Sleep -Seconds 8
+  ignore_errors: yes
+
+- name: Tunggu HTTP server siap
+  win_shell: Start-Sleep -Seconds 5
+
+- name: Verifikasi HTTP server berjalan
+  win_shell: Invoke-WebRequest http://localhost:8080 -UseBasicParsing
+  register: http_check
+  ignore_errors: yes
+
+- name: Print status HTTP server
+  debug:
+    msg: "HTTP Server: {{ 'RUNNING' if http_check.rc == 0 else 'FAILED' }}"
+
+# ── CONSUL AGENT ─────────────────────────────────────────
+
 - name: Buat folder Consul
   win_file:
-    path: C:\consul\config
+    path: "{{ item }}"
     state: directory
+  loop:
+    - C:\consul\config
+    - C:\consul\data
+
+- name: Stop Consul jika sudah berjalan
+  win_shell: >-
+    Stop-ScheduledTask -TaskName "ConsulAgent" -ErrorAction SilentlyContinue;
+    Stop-Service -Name "consul" -ErrorAction SilentlyContinue;
+    Start-Sleep -Seconds 3
+  ignore_errors: yes
 
 - name: Download Consul untuk Windows
   win_get_url:
@@ -13,33 +98,62 @@
   win_unzip:
     src: C:\consul\consul.zip
     dest: C:\consul\
+    override_entries: yes
+  ignore_errors: yes
 
 - name: Deploy config Consul agent
   win_template:
     src: consul-agent.json.j2
     dest: C:\consul\config\consul.json
 
-- name: Install Consul sebagai Windows service
-  win_shell: |
+- name: Hapus file tidak diperlukan di folder config
+  win_shell: >-
+    Get-ChildItem C:\consul\config\ |
+    Where-Object { $_.Extension -notin @('.json','.hcl') } |
+    Remove-Item -Force
+  ignore_errors: yes
+
+- name: Register Consul sebagai Windows service
+  win_shell: >-
     if (-not (Get-Service -Name "consul" -ErrorAction SilentlyContinue)) {
-        New-Service -Name "consul" `
-          -BinaryPathName 'C:\consul\consul.exe agent -config-dir=C:\consul\config' `
-          -DisplayName "Consul Agent" `
-          -StartupType Automatic
-    }
-  args:
-    creates: C:\consul\consul.log
+    New-Service -Name "consul"
+    -BinaryPathName "C:\consul\consul.exe agent -config-dir=C:\consul\config"
+    -DisplayName "Consul Agent"
+    -StartupType Automatic }
+  ignore_errors: yes
 
-- name: Start Consul service
-  win_service:
-    name: consul
-    state: started
-    start_mode: auto
+- name: Register Task Scheduler untuk Consul
+  win_shell: >-
+    $action = New-ScheduledTaskAction -Execute "C:\consul\consul.exe" -Argument "agent -config-dir=C:\consul\config";
+    $trigger = New-ScheduledTaskTrigger -AtStartup;
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit 0 -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1);
+    Register-ScheduledTask -TaskName "ConsulAgent" -Action $action -Trigger $trigger -Settings $settings -RunLevel Highest -Force
+  ignore_errors: yes
 
-- name: Cek Consul berjalan
-  win_shell: Get-Service consul | Select-Object Name, Status
+- name: Start Consul agent
+  win_shell: Start-ScheduledTask -TaskName "ConsulAgent"
+  ignore_errors: yes
+
+- name: Tunggu Consul agent siap
+  win_shell: Start-Sleep -Seconds 10
+
+- name: Verifikasi Consul berjalan
+  win_shell: Get-ScheduledTask -TaskName "ConsulAgent" | Select-Object TaskName, State
   register: consul_status
 
 - name: Print status Consul
   debug:
-    msg: "{{ consul_status.stdout }}"
+    msg: "Consul Agent: {{ consul_status.stdout }}"
+
+# ── SUMMARY ──────────────────────────────────────────────
+
+- name: Summary setup device
+  debug:
+    msg:
+      - "======================================"
+      - "Device  : {{ inventory_hostname }}"
+      - "Nama    : {{ vtron_name }}"
+      - "IP      : {{ ansible_host }}"
+      - "HTTP    : http://{{ ansible_host }}:8080"
+      - "Consul  : terdaftar di videotron-dc"
+      - "======================================"
