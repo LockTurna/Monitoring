@@ -22,7 +22,8 @@ scrape_configs:
     static_configs:
       - targets:
           - http://100.125.1.96:8080      # vtron-03 Windows
-          - http://100.118.6.22:8080    # vtron-04 Windows
+          - http://100.118.6.22:8080
+          - http://100.117.34.28:8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
