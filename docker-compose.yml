@@ -138,17 +138,6 @@ services:
       - drm_network
     restart: unless-stopped
 
-  remediation:
-    build: ./remediation
-    container_name: remediation
-    ports:
-      - "5001:5001"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - drm_network
-    restart: unless-stopped
-
   consul:
     image: hashicorp/consul:1.17
     container_name: consul
