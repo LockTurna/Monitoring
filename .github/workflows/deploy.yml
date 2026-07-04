@@ -75,13 +75,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-
       - name: Validate Secrets
         run: |
           if [ -z "${{ secrets.SERVER_HOST }}" ]; then
@@ -106,6 +99,14 @@ jobs:
             -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
             -d parse_mode=Markdown \
             -d text="🚀 *Videotron Monitoring*%0ADeploy dimulai...%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}"
+
+      # Integrasi Tailscale agar runner bisa mengakses SERVER_HOST via IP Internal
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
