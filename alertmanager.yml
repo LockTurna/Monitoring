@@ -1,4 +1,3 @@
----
 global:
   resolve_timeout: 1m
 
@@ -24,7 +23,8 @@ receivers:
       - bot_token: '8171004718:AAFuuuB8Tk1cqPvf6S6OEqr3sIu37RwiAI0'
         chat_id: 1296546071
         message: |
-          {{ if eq .Status "firing" }}🚨{{ else }}✅{{ end }} *{{ .Status | toUpper }}: {{ .GroupLabels.alertname }}*
+          {{ if eq .Status "firing" }}🚨{{ else }}✅{{ end }}
+          *{{ .Status | toUpper }}: {{ .GroupLabels.alertname }}*
 
           {{ range .Alerts }}
           📍 *Device*: {{ .Labels.instance }}
