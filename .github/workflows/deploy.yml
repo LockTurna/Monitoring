@@ -100,7 +100,6 @@ jobs:
             -d parse_mode=Markdown \
             -d text="🚀 *Videotron Monitoring*%0ADeploy dimulai...%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}"
 
-      # Integrasi Tailscale agar runner bisa mengakses SERVER_HOST via IP Internal
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
@@ -118,38 +117,25 @@ jobs:
           timeout: 60s
           script_stop: true
           script: |
-            set -e
-            echo "🚀 Mulai deploy ke server..."
+            echo "🚀 Mulai deploy ke environment Windows..."
             
-            # Cek koneksi
             echo "📡 Checking server connectivity..."
             whoami
-            pwd
+            cd \
             
-            # Navigate ke folder
-            echo "📁 Navigating to /opt/videotron-monitoring..."
-            if [ ! -d "/opt/videotron-monitoring" ]; then
-              echo "❌ Directory /opt/videotron-monitoring tidak ditemukan!"
-              echo "Membuat directory..."
-              sudo mkdir -p /opt/videotron-monitoring
-              sudo chown $(whoami):$(whoami) /opt/videotron-monitoring
-            fi
+            echo "📁 Navigating to C:\opt\videotron-monitoring..."
+            if not exist "C:\opt\videotron-monitoring" mkdir "C:\opt\videotron-monitoring"
+            cd /d C:\opt\videotron-monitoring
             
-            cd /opt/videotron-monitoring
-            
-            # Pull latest changes
             echo "📥 Pulling latest changes..."
-            git pull origin master || echo "⚠️ Git pull failed, continuing..."
+            git pull origin master
             
-            # Pull latest Docker images
             echo "🐳 Pulling Docker images..."
-            docker compose pull || true
+            docker compose pull
             
-            # Start/restart services
             echo "🔄 Starting services..."
             docker compose up -d --force-recreate
             
-            # Check status
             echo "✅ Checking service status..."
             docker compose ps
             
